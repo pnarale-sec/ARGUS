@@ -1,8 +1,13 @@
 import os
-from log_parser import parse_log_line
-from database import init_db, insert_log
 
-LOGS_FOLDER = "logs"
+try:
+    from .log_parser import parse_log_line
+    from .database import init_db, insert_log
+except ImportError:
+    from log_parser import parse_log_line
+    from database import init_db, insert_log
+
+LOGS_FOLDER = os.path.join(os.path.dirname(__file__), "..", "logs")
 
 def main():
     

@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARGUS SIEM</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-primary:   #0a0e1a;
+            --bg-secondary: #0d1117;
+            --bg-card:      #111827;
+            --border:       #1e2a3a;
+            --green:        #00ff88;
+            --blue:         #3b9eff;
+            --orange:       #ffaa00;
+            --red:          #ff4444;
+            --purple:       #a855f7;
+            --cyan:         #06b6d4;
+            --text:         #e0e0e0;
+            --text-muted:   #6b7280;
+            --sidebar-w:    240px;
+        }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text);
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* ── SIDEBAR ── */
+        .sidebar {
+            width: var(--sidebar-w);
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0; left: 0;
+            height: 100vh;
+            z-index: 100;
+        }
+
+        .sidebar-logo {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-logo h2 {
+            color: var(--green);
+            font-size: 20px;
+            letter-spacing: 4px;
+        }
+
+        .sidebar-logo p {
+            color: var(--text-muted);
+            font-size: 10px;
+            letter-spacing: 2px;
+            margin-top: 3px;
+        }
+
+        .sidebar-menu {
+            flex: 1;
+            padding: 15px 0;
+            overflow-y: auto;
+        }
+
+        .menu-section {
+            padding: 10px 20px 5px;
+            font-size: 10px;
+            color: var(--text-muted);
+            letter-spacing: 2px;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 20px;
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 13px;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .menu-item:hover {
+            background: rgba(0,255,136,0.05);
+            color: var(--text);
+        }
+
+        .menu-item.active {
+            background: rgba(0,255,136,0.08);
+            color: var(--green);
+            border-left-color: var(--green);
+        }
+
+        .menu-item .icon { font-size: 16px; width: 20px; }
+
+        .menu-badge {
+            margin-left: auto;
+            background: var(--red);
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+
+        .sidebar-footer {
+            padding: 15px 20px;
+            border-top: 1px solid var(--border);
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            margin-right: 6px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%,100% { opacity: 1; }
+            50%      { opacity: 0.3; }
+        }
+
+        /* ── MAIN CONTENT ── */
+        .main {
+            margin-left: var(--sidebar-w);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* ── TOP BAR ── */
+        .topbar {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 25px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 99;
+        }
+
+        .topbar-left h1 {
+            font-size: 18px;
+            color: var(--text);
+        }
+
+        .topbar-left p {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .datetime {
+            text-align: right;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .datetime span {
+            display: block;
+            color: var(--green);
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .refresh-btn {
+            background: rgba(0,255,136,0.1);
+            border: 1px solid var(--green);
+            color: var(--green);
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .refresh-btn:hover {
+            background: rgba(0,255,136,0.2);
+        }
+
+        /* ── PAGES ── */
+        .page { display: none; padding: 25px; }
+        .page.active { display: block; }
+
+        /* ── STAT CARDS ── */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 18px 20px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s;
+        }
+
+        .stat-card:hover { transform: translateY(-2px); }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 3px;
+        }
+
+        .stat-card.green::before  { background: var(--green); }
+        .stat-card.blue::before   { background: var(--blue); }
+        .stat-card.orange::before { background: var(--orange); }
+        .stat-card.red::before    { background: var(--red); }
+        .stat-card.purple::before { background: var(--purple); }
+        .stat-card.cyan::before   { background: var(--cyan); }
+
+        .stat-card .label {
+            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .stat-card .value {
+            font-size: 30px;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .stat-card.green .value  { color: var(--green); }
+        .stat-card.blue .value   { color: var(--blue); }
+        .stat-card.orange .value { color: var(--orange); }
+        .stat-card.red .value    { color: var(--red); }
+        .stat-card.purple .value { color: var(--purple); }
+        .stat-card.cyan .value   { color: var(--cyan); }
+
+        .stat-card .sub {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        .stat-card .icon {
+            position: absolute;
+            right: 15px; top: 15px;
+            font-size: 28px;
+            opacity: 0.15;
+        }
+
+        /* ── CHARTS ── */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .chart-card h3 {
+            font-size: 13px;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+        }
+
+        .chart-card canvas { max-height: 200px; }
+
+        /* ── FILTERS ── */
+        .filters-bar {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+        }
+
+        .filters-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filters-row input,
+        .filters-row select {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .filters-row input:focus,
+        .filters-row select:focus {
+            border-color: var(--green);
+        }
+
+        .filters-row input.search-main { flex: 1; min-width: 200px; }
+
+        .btn {
+            padding: 8px 15px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-green {
+            background: var(--green);
+            color: #0a0e1a;
+        }
+
+        .btn-green:hover { background: #00cc66; }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--text-muted);
+            color: var(--text);
+        }
+
+        /* ── TABLE ── */
+        .table-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .table-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .table-header h3 {
+            font-size: 14px;
+            color: var(--text);
+        }
+
+        .page-size-select {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .table-wrap { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        thead { position: sticky; top: 0; z-index: 10; }
+
+        th {
+            background: var(--bg-secondary);
+            color: var(--text-muted);
+            padding: 12px 15px;
+            text-align: left;
+            font-size: 11px;
+            letter-spacing: 1px;
+            white-space: nowrap;
+            cursor: pointer;
+            user-select: none;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th:hover { color: var(--green); }
+        th.sorted-asc::after  { content: ' ↑'; color: var(--green); }
+        th.sorted-desc::after { content: ' ↓'; color: var(--green); }
+
+        td {
+            padding: 11px 15px;
+            border-bottom: 1px solid rgba(30,42,58,0.5);
+            vertical-align: middle;
+        }
+
+        tr:hover td { background: rgba(0,255,136,0.02); }
+
+        .badge {
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
+
+        .badge.INFO     { background:#1a3a5c; color:var(--blue); }
+        .badge.WARNING  { background:#3a2a00; color:var(--orange); }
+        .badge.ERROR    { background:#3a0000; color:var(--red); }
+        .badge.CRITICAL { background:#2a003a; color:var(--purple); }
+
+        .expand-btn {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 3px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .expand-btn:hover { border-color: var(--green); color: var(--green); }
+
+        .expanded-row td {
+            background: rgba(0,255,136,0.03);
+            padding: 15px 20px;
+        }
+
+        .log-detail {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            font-size: 12px;
+        }
+
+        .log-detail-item label {
+            color: var(--text-muted);
+            display: block;
+            margin-bottom: 3px;
+            font-size: 10px;
+            letter-spacing: 1px;
+        }
+
+        .log-detail-item span { color: var(--text); }
+
+        .copy-btn {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            margin-top: 10px;
+        }
+
+        .copy-btn:hover { border-color: var(--blue); color: var(--blue); }
+
+        .highlight { background: rgba(255,170,0,0.3); border-radius: 2px; }
+
+        /* ── PAGINATION ── */
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            border-top: 1px solid var(--border);
+            font-size: 13px;
+        }
+
+        .pagination-info { color: var(--text-muted); }
+
+        .pagination-controls {
+            display: flex;
+            gap: 5px;
+        }
+
+        .page-btn {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            min-width: 32px;
+            text-align: center;
+        }
+
+        .page-btn:hover { border-color: var(--green); color: var(--green); }
+        .page-btn.active { background: var(--green); color: #0a0e1a; border-color: var(--green); font-weight: bold; }
+        .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        /* ── STATUS BAR ── */
+        .statusbar {
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            padding: 8px 25px;
+            font-size: 11px;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            position: sticky;
+            bottom: 0;
+        }
+
+        /* ── PLACEHOLDER PAGES ── */
+        .placeholder-page {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 400px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .placeholder-page .ph-icon { font-size: 60px; margin-bottom: 20px; opacity: 0.3; }
+        .placeholder-page h2 { color: var(--text); margin-bottom: 10px; }
+        .placeholder-page p  { font-size: 13px; }
+        .coming-soon {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 6px 16px;
+            border: 1px solid var(--green);
+            color: var(--green);
+            border-radius: 20px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ══════════════ SIDEBAR ══════════════ -->
+<div class="sidebar">
+    <div class="sidebar-logo">
+        <h2>👁 ARGUS</h2>
+        <p>SECURITY INFORMATION & EVENT MANAGEMENT</p>
+    </div>
+
+    <div class="sidebar-menu">
+        <div class="menu-section">MAIN</div>
+        <div class="menu-item active" onclick="showPage('dashboard', this)">
+            <span class="icon">📊</span> Dashboard
+        </div>
+        <div class="menu-item" onclick="showPage('live-logs', this)">
+            <span class="icon">📋</span> Live Logs
+        </div>
+        <div class="menu-item" onclick="showPage('alerts', this)">
+            <span class="icon">🚨</span> Alerts
+            <span class="menu-badge" id="alertBadge">0</span>
+        </div>
+
+        <div class="menu-section">SECURITY</div>
+        <div class="menu-item" onclick="showPage('detection', this)">
+            <span class="icon">🔍</span> Detection Rules
+        </div>
+        <div class="menu-item" onclick="showPage('threat-intel', this)">
+            <span class="icon">🌍</span> Threat Intelligence
+        </div>
+        <div class="menu-item" onclick="showPage('reports', this)">
+            <span class="icon">📄</span> Reports
+        </div>
+
+        <div class="menu-section">MANAGEMENT</div>
+        <div class="menu-item" onclick="showPage('log-sources', this)">
+            <span class="icon">🔌</span> Log Sources
+        </div>
+        <div class="menu-item" onclick="showPage('users', this)">
+            <span class="icon">👥</span> User Management
+        </div>
+        <div class="menu-item" onclick="showPage('settings', this)">
+            <span class="icon">⚙️</span> Settings
+        </div>
+    </div>
+
+    <div class="sidebar-footer">
+        <span class="status-dot"></span>
+        System Online
+        <div style="margin-top:5px" id="ingestRate">0 logs/sec</div>
+    </div>
+</div>
+
+<!-- ══════════════ MAIN ══════════════ -->
+<div class="main">
+
+    <!-- TOP BAR -->
+    <div class="topbar">
+        <div class="topbar-left">
+            <h1 id="pageTitle">Dashboard Overview</h1>
+            <p id="pageSubtitle">Real-time security monitoring</p>
+        </div>
+        <div class="topbar-right">
+            <div class="datetime">
+                <span id="clock">--:--:--</span>
+                <div id="dateDisplay">Loading...</div>
+            </div>
+            <button class="refresh-btn" onclick="loadLogs()">🔄 Refresh</button>
+        </div>
+    </div>
+
+    <!-- ══ PAGE: DASHBOARD ══ -->
+    <div class="page active" id="page-dashboard">
+
+        <!-- Stat Cards -->
+        <div class="cards-grid">
+            <div class="stat-card green">
+                <span class="icon">📋</span>
+                <div class="label">TOTAL LOGS</div>
+                <div class="value" id="totalCount">0</div>
+                <div class="sub">All ingested events</div>
+            </div>
+            <div class="stat-card blue">
+                <span class="icon">ℹ️</span>
+                <div class="label">INFO</div>
+                <div class="value" id="infoCount">0</div>
+                <div class="sub">Informational events</div>
+            </div>
+            <div class="stat-card orange">
+                <span class="icon">⚠️</span>
+                <div class="label">WARNING</div>
+                <div class="value" id="warningCount">0</div>
+                <div class="sub">Requires attention</div>
+            </div>
+            <div class="stat-card red">
+                <span class="icon">❌</span>
+                <div class="label">ERROR</div>
+                <div class="value" id="errorCount">0</div>
+                <div class="sub">Critical errors</div>
+            </div>
+            <div class="stat-card purple">
+                <span class="icon">🚨</span>
+                <div class="label">CRITICAL ALERTS</div>
+                <div class="value" id="criticalCount">0</div>
+                <div class="sub">Immediate action needed</div>
+            </div>
+            <div class="stat-card red">
+                <span class="icon">🎯</span>
+                <div class="label">ACTIVE THREATS</div>
+                <div class="value" id="threatCount">0</div>
+                <div class="sub">Detected threats</div>
+            </div>
+            <div class="stat-card cyan">
+                <span class="icon">🔌</span>
+                <div class="label">LOG SOURCES</div>
+                <div class="value" id="sourceCount">0</div>
+                <div class="sub">Connected sources</div>
+            </div>
+            <div class="stat-card green">
+                <span class="icon">💚</span>
+                <div class="label">SYSTEM HEALTH</div>
+                <div class="value" id="healthStatus">OK</div>
+                <div class="sub">All systems operational</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3>📈 LOGS OVER TIME</h3>
+                <canvas id="timeChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3>🥧 SEVERITY DISTRIBUTION</h3>
+                <canvas id="pieChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3>📊 TOP LOG SOURCES</h3>
+                <canvas id="sourceChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters-bar">
+            <div class="filters-row">
+                <input class="search-main" type="text"
+                       id="searchInput"
+                       placeholder="🔍 Global search — message, IP, user, source..."
+                       oninput="applyFilters()">
+                <select id="filterLevel" onchange="applyFilters()">
+                    <option value="">All Severities</option>
+                    <option value="INFO">INFO</option>
+                    <option value="WARNING">WARNING</option>
+                    <option value="ERROR">ERROR</option>
+                    <option value="CRITICAL">CRITICAL</option>
+                </select>
+                <select id="filterSource" onchange="applyFilters()">
+                    <option value="">All Sources</option>
+                </select>
+                <input type="date" id="filterDateFrom"
+                       onchange="applyFilters()"
+                       title="From date">
+                <input type="date" id="filterDateTo"
+                       onchange="applyFilters()"
+                       title="To date">
+                <button class="btn btn-outline" onclick="clearFilters()">
+                    ✕ Clear
+                </button>
+            </div>
+        </div>
+
+        <!-- Log Table -->
+        <div class="table-card">
+            <div class="table-header">
+                <h3>📋 Security Event Log</h3>
+                <div style="display:flex;gap:10px;align-items:center">
+                    <span style="font-size:12px;color:var(--text-muted)"
+                          id="filteredCount">Showing 0 logs</span>
+                    <select class="page-size-select"
+                            id="pageSizeSelect"
+                            onchange="changePageSize()">
+                        <option value="10">10 / page</option>
+                        <option value="25" selected>25 / page</option>
+                        <option value="50">50 / page</option>
+                        <option value="100">100 / page</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th onclick="sortTable('id')">ID</th>
+                            <th onclick="sortTable('timestamp')">TIMESTAMP</th>
+                            <th onclick="sortTable('level')">SEVERITY</th>
+                            <th onclick="sortTable('message')">MESSAGE</th>
+                            <th onclick="sortTable('source')">SOURCE</th>
+                            <th>ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logTableBody">
+                        <tr>
+                            <td colspan="7"
+                                style="text-align:center;color:var(--text-muted);padding:40px">
+                                Loading logs...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pagination">
+                <div class="pagination-info" id="paginationInfo">
+                    Showing 0 of 0 logs
+                </div>
+                <div class="pagination-controls" id="paginationControls"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ PAGE: LIVE LOGS ══ -->
+    <div class="page" id="page-live-logs">
+        <div class="placeholder-page">
+            <div class="ph-icon">📡</div>
+            <h2>Live Log Stream</h2>
+            <p>Real-time WebSocket log streaming will be added in Phase 5</p>
+            <span class="coming-soon">🔄 Coming in Phase 5</span>
+        </div>
+    </div>
+
+    <!-- ══ PAGE: ALERTS ══ -->
+    <div class="page" id="page-alerts">
+        <div class="placeholder-page">
+            <div class="ph-icon">🚨</div>
+            <h2>Alert Center</h2>
+            <p>Brute force detection and alert management will be added in Phase 5 & 6</p>
+            <span class="coming-soon">🔄 Coming in Phase 5 & 6</span>
+        </div>
+    </div>
+
+    <!-- ══ PAGE: DETECTION ══ -->
+    <div class="page" id="page-detection">
+        <div class="placeholder-page">
+            <div class="ph-icon">🔍</div>
+            <h2>Detection Rules</h2>
+            <p>Rule engine and brute force detection will be added in Phase 5</p>
+            <span class="coming-soon">🔄 Coming in Phase 5</span>
+        </div>
+    </div>
+
+    <!-- ══ PAGE: THREAT INTEL ══ -->
+    <div class="page" id="page-threat-intel">
+        <div class="placeholder-page">
+            <div class="ph-icon">🌍</div>
+            <h2>Threat Intelligence</h2>
+            <p>VirusTotal and AbuseIPDB integration will be added in Phase 9</p>
+            <span class="coming-soon">🔄 Coming in Phase 9</span>
+        </div>
+    </div>
+
+    <!-- ══ PAGE: REPORTS ══ -->
+    <div class="page" id="page-reports">
+        <div class="placeholder-page">
+            <div class="ph-icon">📄</div>
+            <h2>Reports</h2>
+            <p>PDF report generation will be added in Phase 10</p>
+            <span class="coming-soon">🔄 Coming in Phase 10</span>
+        </div>
+    </div>
+
+    <!-- ══ PAGE: LOG SOURCES ══ -->
+    <div class="page" id="page-log-sources">
+        <div class="placeholder-page">
+            <div class="ph-icon">🔌</div>
+            <h2>Log Sources</h2>
+            <p>Multi-source log support will be added in Phase 7</p>
+            <span class="coming-soon">🔄 Coming in Phase 7</span>
+        </div>
+    </div>
+
+    <!-- ══ PAGE: USERS ══ -->
+    <div class="page" id="page-users">
+        <div class="placeholder-page">
+            <div class="ph-icon">👥</div>
+            <h2>User Management</h2>
+            <p>Role-based access control will be added in Phase 10</p>
+            <span class="coming-soon">🔄 Coming in Phase 10</span>
+        </div>
+    </div>
+
+    <!-- ══ PAGE: SETTINGS ══ -->
+    <div class="page" id="page-settings">
+        <div class="placeholder-page">
+            <div class="ph-icon">⚙️</div>
+            <h2>Settings</h2>
+            <p>System configuration will be added in Phase 10</p>
+            <span class="coming-soon">🔄 Coming in Phase 10</span>
+        </div>
+    </div>
+
+    <!-- STATUS BAR -->
+    <div class="statusbar">
+        <span id="statusBar">Connecting to ARGUS...</span>
+        <span id="autoRefreshStatus">Auto-refresh: ON (30s)</span>
+    </div>
+
+</div>
+
+<script>
+    // ══════════════ STATE ══════════════
+    let allLogs      = [];
+    let filteredLogs = [];
+    let currentPage  = 1;
+    let pageSize     = 25;
+    let sortCol      = 'id';
+    let sortDir      = 'desc';
+    let timeChart, pieChart, sourceChart;
+
+    // ══════════════ CLOCK ══════════════
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('clock').textContent =
+            now.toLocaleTimeString();
+        document.getElementById('dateDisplay').textContent =
+            now.toLocaleDateString('en-US',
+                {weekday:'short', year:'numeric',
+                 month:'short', day:'numeric'});
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // ══════════════ NAVIGATION ══════════════
+    const pageTitles = {
+        'dashboard':   ['Dashboard Overview',  'Real-time security monitoring'],
+        'live-logs':   ['Live Logs',           'Real-time log stream'],
+        'alerts':      ['Alert Center',        'Active security alerts'],
+        'detection':   ['Detection Rules',     'Threat detection configuration'],
+        'threat-intel':['Threat Intelligence', 'IP reputation and threat data'],
+        'reports':     ['Reports',             'Security reports and exports'],
+        'log-sources': ['Log Sources',         'Connected data sources'],
+        'users':       ['User Management',     'Accounts and permissions'],
+        'settings':    ['Settings',            'System configuration'],
+    };
+
+    function showPage(pageId, el) {
+        document.querySelectorAll('.page').forEach(p =>
+            p.classList.remove('active'));
+        document.querySelectorAll('.menu-item').forEach(m =>
+            m.classList.remove('active'));
+
+        document.getElementById('page-' + pageId).classList.add('active');
+        el.classList.add('active');
+
+        const [title, sub] = pageTitles[pageId];
+        document.getElementById('pageTitle').textContent    = title;
+        document.getElementById('pageSubtitle').textContent = sub;
+    }
+
+    // ══════════════ LOAD LOGS ══════════════
+    async function loadLogs() {
+        try {
+            const res  = await fetch('/logs');
+            const data = await res.json();
+            allLogs = data.logs;
+
+            updateCards(allLogs);
+            populateSourceFilter(allLogs);
+            buildCharts(allLogs);
+            applyFilters();
+
+            document.getElementById('statusBar').textContent =
+                `✅ Connected — ${data.total} logs loaded`;
+
+            // ingest rate simulation
+            document.getElementById('ingestRate').textContent =
+                `${data.total} total logs`;
+
+        } catch (err) {
+            document.getElementById('statusBar').textContent =
+                '❌ Cannot connect to ARGUS API';
+        }
+    }
+
+    // ══════════════ CARDS ══════════════
+    function updateCards(logs) {
+        const count = (level) =>
+            logs.filter(l => l.level === level).length;
+
+        const sources = [...new Set(logs.map(l => l.source))];
+        const errors  = count('ERROR');
+        const warnings = count('WARNING');
+
+        document.getElementById('totalCount').textContent   = logs.length;
+        document.getElementById('infoCount').textContent    = count('INFO');
+        document.getElementById('warningCount').textContent = warnings;
+        document.getElementById('errorCount').textContent   = errors;
+        document.getElementById('criticalCount').textContent = count('CRITICAL');
+        document.getElementById('threatCount').textContent  = errors + warnings;
+        document.getElementById('sourceCount').textContent  = sources.length;
+        document.getElementById('healthStatus').textContent =
+            errors > 0 ? 'WARN' : 'OK';
+        document.getElementById('alertBadge').textContent  = errors;
+    }
+
+    // ══════════════ SOURCE FILTER ══════════════
+    function populateSourceFilter(logs) {
+        const sel     = document.getElementById('filterSource');
+        const sources = [...new Set(logs.map(l => l.source))];
+        sel.innerHTML = '<option value="">All Sources</option>';
+        sources.forEach(s => {
+            sel.innerHTML +=
+                `<option value="${s}">${s}</option>`;
+        });
+    }
+
+    // ══════════════ CHARTS ══════════════
+    function buildCharts(logs) {
+        const chartDefaults = {
+            color: '#6b7280',
+            plugins: { legend: { labels: { color: '#6b7280' } } }
+        };
+
+        // --- Pie chart ---
+        const levels  = ['INFO','WARNING','ERROR','CRITICAL'];
+        const colors  = ['#3b9eff','#ffaa00','#ff4444','#a855f7'];
+        const counts  = levels.map(l =>
+            logs.filter(x => x.level === l).length);
+
+        if (pieChart) pieChart.destroy();
+        pieChart = new Chart(
+            document.getElementById('pieChart'), {
+            type: 'doughnut',
+            data: {
+                labels: levels,
+                datasets: [{
+                    data: counts,
+                    backgroundColor: colors,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                ...chartDefaults,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color:'#6b7280', padding:10,
+                                  font:{ size:11 } }
+                    }
+                }
+            }
+        });
+
+        // --- Time chart ---
+        const hourCounts = Array(24).fill(0);
+        logs.forEach(l => {
+            const hour = parseInt((l.timestamp || '').split(' ')[1]);
+            if (!isNaN(hour)) hourCounts[hour]++;
+        });
+        const hours = Array.from({length:24}, (_,i) =>
+            `${String(i).padStart(2,'0')}:00`);
+
+        if (timeChart) timeChart.destroy();
+        timeChart = new Chart(
+            document.getElementById('timeChart'), {
+            type: 'line',
+            data: {
+                labels: hours,
+                datasets: [{
+                    label: 'Events',
+                    data: hourCounts,
+                    borderColor: '#00ff88',
+                    backgroundColor: 'rgba(0,255,136,0.05)',
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 2
+                }]
+            },
+            options: {
+                ...chartDefaults,
+                scales: {
+                    x: { ticks:{ color:'#6b7280', maxTicksLimit:8 },
+                         grid:{ color:'#1e2a3a' } },
+                    y: { ticks:{ color:'#6b7280' },
+                         grid:{ color:'#1e2a3a' } }
+                },
+                plugins: { legend:{ display:false } }
+            }
+        });
+
+        // --- Source bar chart ---
+        const srcMap = {};
+        logs.forEach(l => {
+            srcMap[l.source] = (srcMap[l.source] || 0) + 1;
+        });
+        const srcLabels = Object.keys(srcMap);
+        const srcData   = Object.values(srcMap);
+
+        if (sourceChart) sourceChart.destroy();
+        sourceChart = new Chart(
+            document.getElementById('sourceChart'), {
+            type: 'bar',
+            data: {
+                labels: srcLabels,
+                datasets: [{
+                    label: 'Log count',
+                    data: srcData,
+                    backgroundColor: '#3b9eff',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                ...chartDefaults,
+                scales: {
+                    x: { ticks:{ color:'#6b7280' },
+                         grid:{ color:'#1e2a3a' } },
+                    y: { ticks:{ color:'#6b7280' },
+                         grid:{ color:'#1e2a3a' } }
+                },
+                plugins: { legend:{ display:false } }
+            }
+        });
+    }
+
+    // ══════════════ FILTERS ══════════════
+    function applyFilters() {
+        const search    = document.getElementById('searchInput')
+                            .value.toLowerCase();
+        const level     = document.getElementById('filterLevel').value;
+        const source    = document.getElementById('filterSource').value;
+        const dateFrom  = document.getElementById('filterDateFrom').value;
+        const dateTo    = document.getElementById('filterDateTo').value;
+
+        filteredLogs = allLogs.filter(l => {
+            if (level  && l.level  !== level)  return false;
+            if (source && l.source !== source) return false;
+            if (dateFrom && l.timestamp < dateFrom) return false;
+            if (dateTo   && l.timestamp > dateTo + ' 23:59:59') return false;
+            if (search) {
+                const hay = (l.message + l.source + l.timestamp +
+                             l.level).toLowerCase();
+                if (!hay.includes(search)) return false;
+            }
+            return true;
+        });
+
+        sortLogs();
+        currentPage = 1;
+        renderTable();
+    }
+
+    function clearFilters() {
+        document.getElementById('searchInput').value    = '';
+        document.getElementById('filterLevel').value   = '';
+        document.getElementById('filterSource').value  = '';
+        document.getElementById('filterDateFrom').value = '';
+        document.getElementById('filterDateTo').value   = '';
+        applyFilters();
+    }
+
+    // ══════════════ SORT ══════════════
+    function sortTable(col) {
+        if (sortCol === col) {
+            sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortCol = col;
+            sortDir = 'asc';
+        }
+
+        document.querySelectorAll('th').forEach(th => {
+            th.classList.remove('sorted-asc','sorted-desc');
+        });
+
+        const ths = document.querySelectorAll('th');
+        const colMap = ['','id','timestamp','level','message','source'];
+        const idx    = colMap.indexOf(col);
+        if (idx >= 0) {
+            ths[idx].classList.add(
+                sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+        }
+
+        sortLogs();
+        renderTable();
+    }
+
+    function sortLogs() {
+        filteredLogs.sort((a, b) => {
+            let va = a[sortCol] ?? '';
+            let vb = b[sortCol] ?? '';
+            if (sortCol === 'id') { va = +va; vb = +vb; }
+            if (va < vb) return sortDir === 'asc' ? -1 :  1;
+            if (va > vb) return sortDir === 'asc' ?  1 : -1;
+            return 0;
+        });
+    }
+
+    // ══════════════ RENDER TABLE ══════════════
+    function renderTable() {
+        const tbody   = document.getElementById('logTableBody');
+        const total   = filteredLogs.length;
+        const start   = (currentPage - 1) * pageSize;
+        const end     = Math.min(start + pageSize, total);
+        const pageLogs = filteredLogs.slice(start, end);
+        const search  = document.getElementById('searchInput')
+                            .value.toLowerCase();
+
+        document.getElementById('filteredCount').textContent =
+            `Showing ${total} logs`;
+        document.getElementById('paginationInfo').textContent =
+            `Showing ${start+1}–${end} of ${total} logs`;
+
+        if (pageLogs.length === 0) {
+            tbody.innerHTML = `
+                <tr><td colspan="7"
+                    style="text-align:center;color:var(--text-muted);padding:40px">
+                    No logs match your filters
+                </td></tr>`;
+            renderPagination(total);
+            return;
+        }
+
+        tbody.innerHTML = pageLogs.map(log => {
+            const msg = search
+                ? log.message.replace(
+                    new RegExp(`(${search})`, 'gi'),
+                    '<mark class="highlight">$1</mark>')
+                : log.message;
+
+            return `
+            <tr>
+                <td>
+                    <button class="expand-btn"
+                            onclick="toggleExpand(${log.id})">+</button>
+                </td>
+                <td style="color:var(--text-muted)">#${log.id}</td>
+                <td style="color:var(--text-muted);white-space:nowrap">
+                    ${log.timestamp}
+                </td>
+                <td>
+                    <span class="badge ${log.level}">${log.level}</span>
+                </td>
+                <td>${msg}</td>
+                <td style="color:var(--text-muted)">${log.source}</td>
+                <td>
+                    <button class="copy-btn"
+                            onclick="copyLog(${log.id})">📋 Copy</button>
+                </td>
+            </tr>
+            <tr id="expand-${log.id}" style="display:none">
+                <td colspan="7" class="expanded-row">
+                    <div class="log-detail">
+                        <div class="log-detail-item">
+                            <label>LOG ID</label>
+                            <span>#${log.id}</span>
+                        </div>
+                        <div class="log-detail-item">
+                            <label>TIMESTAMP</label>
+                            <span>${log.timestamp}</span>
+                        </div>
+                        <div class="log-detail-item">
+                            <label>SEVERITY</label>
+                            <span>${log.level}</span>
+                        </div>
+                        <div class="log-detail-item">
+                            <label>SOURCE FILE</label>
+                            <span>${log.source}</span>
+                        </div>
+                        <div class="log-detail-item" style="grid-column:span 2">
+                            <label>FULL MESSAGE</label>
+                            <span>${log.message}</span>
+                        </div>
+                    </div>
+                    <button class="copy-btn"
+                            onclick="copyLog(${log.id})">
+                        📋 Copy Full Log Entry
+                    </button>
+                </td>
+            </tr>`;
+        }).join('');
+
+        renderPagination(total);
+    }
+
+    // ══════════════ EXPAND ROW ══════════════
+    function toggleExpand(id) {
+        const row = document.getElementById(`expand-${id}`);
+        const btn = row.previousElementSibling
+                       .querySelector('.expand-btn');
+        if (row.style.display === 'none') {
+            row.style.display = 'table-row';
+            btn.textContent   = '−';
+        } else {
+            row.style.display = 'none';
+            btn.textContent   = '+';
+        }
+    }
+
+    // ══════════════ COPY LOG ══════════════
+    function copyLog(id) {
+        const log  = allLogs.find(l => l.id === id);
+        if (!log) return;
+        const text =
+            `ID: ${log.id} | ${log.timestamp} | ${log.level} | ${log.message} | Source: ${log.source}`;
+        navigator.clipboard.writeText(text).then(() => {
+            document.getElementById('statusBar').textContent =
+                '📋 Log entry copied to clipboard';
+            setTimeout(() => {
+                document.getElementById('statusBar').textContent =
+                    '✅ Connected';
+            }, 2000);
+        });
+    }
+
+    // ══════════════ PAGINATION ══════════════
+    function renderPagination(total) {
+        const totalPages = Math.ceil(total / pageSize);
+        const ctrl       = document.getElementById('paginationControls');
+
+        if (totalPages <= 1) { ctrl.innerHTML = ''; return; }
+
+        let html = `
+            <button class="page-btn"
+                    onclick="goToPage(${currentPage-1})"
+                    ${currentPage===1 ? 'disabled' : ''}>‹</button>`;
+
+        const range = 2;
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages ||
+                (i >= currentPage - range && i <= currentPage + range)) {
+                html += `
+                    <button class="page-btn ${i===currentPage?'active':''}"
+                            onclick="goToPage(${i})">${i}</button>`;
+            } else if (i === currentPage - range - 1 ||
+                       i === currentPage + range + 1) {
+                html += `<span style="color:var(--text-muted);
+                                padding:5px 3px">…</span>`;
+            }
+        }
+
+        html += `
+            <button class="page-btn"
+                    onclick="goToPage(${currentPage+1})"
+                    ${currentPage===totalPages ? 'disabled' : ''}>›</button>`;
+
+        ctrl.innerHTML = html;
+    }
+
+    function goToPage(page) {
+        const totalPages =
+            Math.ceil(filteredLogs.length / pageSize);
+        if (page < 1 || page > totalPages) return;
+        currentPage = page;
+        renderTable();
+        window.scrollTo({top:0, behavior:'smooth'});
+    }
+
+    function changePageSize() {
+        pageSize    = parseInt(
+            document.getElementById('pageSizeSelect').value);
+        currentPage = 1;
+        renderTable();
+    }
+
+    // ══════════════ AUTO REFRESH ══════════════
+    setInterval(loadLogs, 30000);
+
+    // ══════════════ INIT ══════════════
+    loadLogs();
+</script>
+</body>
+</html>
