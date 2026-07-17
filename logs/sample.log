@@ -4,3 +4,9 @@
 2026-06-20 10:16:09 WARNING Failed login attempt for user admin from 192.168.1.55
 2026-06-20 10:17:00 INFO User john logged out
 2026-06-20 10:18:22 ERROR Disk usage exceeded 90% on /dev/sda1
+2026-06-20 10:16:10 WARNING Failed login attempt for user admin from 192.168.1.55
+2026-06-20 10:16:15 WARNING Failed login attempt for user admin from 192.168.1.55
+2026-06-20 10:16:20 WARNING Failed login attempt for user admin from 192.168.1.55
+2026-06-20 10:18:00 ERROR Database connection failed on /dev/sda1
+2026-06-20 10:18:10 ERROR Disk read error on /dev/sda1
+2026-06-20 10:19:00 WARNING Unauthorized access attempt detected from 10.0.0.1

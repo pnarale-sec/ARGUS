@@ -435,6 +435,13 @@
         .badge.WARNING  { background:#3a2a00; color:var(--orange); }
         .badge.ERROR    { background:#3a0000; color:var(--red); }
         .badge.CRITICAL { background:#2a003a; color:var(--purple); }
+        .badge.CRITICAL     { background:#2a003a; color:var(--purple); }
+        .badge.HIGH         { background:#3a0000; color:var(--red); }
+        .badge.MEDIUM       { background:#3a2a00; color:var(--orange); }
+        .badge.LOW          { background:#1a3a5c; color:var(--blue); }
+        .badge.NEW          { background:#003a1a; color:var(--green); }
+        .badge.ACKNOWLEDGED { background:#1a1a3a; color:#8888ff; }
+        .badge.RESOLVED     { background:#1a2a1a; color:#888; }
 
         .expand-btn {
             background: none;
@@ -788,14 +795,73 @@
     </div>
 
     <!-- ══ PAGE: ALERTS ══ -->
-    <div class="page" id="page-alerts">
-        <div class="placeholder-page">
-            <div class="ph-icon">🚨</div>
-            <h2>Alert Center</h2>
-            <p>Brute force detection and alert management will be added in Phase 5 & 6</p>
-            <span class="coming-soon">🔄 Coming in Phase 5 & 6</span>
+    <!-- ══ PAGE: ALERTS ══ -->
+<div class="page" id="page-alerts">
+
+    <!-- Alert Stats -->
+    <div class="cards-grid" style="grid-template-columns:repeat(4,1fr)">
+        <div class="stat-card red">
+            <span class="icon">🚨</span>
+            <div class="label">TOTAL ALERTS</div>
+            <div class="value" id="alertTotal">0</div>
+            <div class="sub">All detected threats</div>
+        </div>
+        <div class="stat-card purple">
+            <span class="icon">💀</span>
+            <div class="label">CRITICAL</div>
+            <div class="value" id="alertCritical">0</div>
+            <div class="sub">Immediate action needed</div>
+        </div>
+        <div class="stat-card red">
+            <span class="icon">🔴</span>
+            <div class="label">HIGH</div>
+            <div class="value" id="alertHigh">0</div>
+            <div class="sub">Urgent threats</div>
+        </div>
+        <div class="stat-card orange">
+            <span class="icon">🟡</span>
+            <div class="label">MEDIUM</div>
+            <div class="value" id="alertMedium">0</div>
+            <div class="sub">Needs investigation</div>
         </div>
     </div>
+
+    <!-- Alert Table -->
+    <div class="table-card" style="margin-top:20px">
+        <div class="table-header">
+            <h3>🚨 Active Security Alerts</h3>
+            <span style="font-size:12px;color:var(--text-muted)"
+                  id="alertCount">0 alerts</span>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>RULE</th>
+                        <th>SEVERITY</th>
+                        <th>DESCRIPTION</th>
+                        <th>SOURCE IP</th>
+                        <th>STATUS</th>
+                        <th>TIME</th>
+                        <th>ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody id="alertTableBody">
+                    <tr>
+                        <td colspan="8"
+                            style="text-align:center;
+                                   color:var(--text-muted);
+                                   padding:40px">
+                            Loading alerts...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
     <!-- ══ PAGE: DETECTION ══ -->
     <div class="page" id="page-detection">
@@ -907,14 +973,17 @@
         document.querySelectorAll('.menu-item').forEach(m =>
             m.classList.remove('active'));
 
-        document.getElementById('page-' + pageId).classList.add('active');
+        document.getElementById('page-' + pageId)
+            .classList.add('active');
         el.classList.add('active');
 
         const [title, sub] = pageTitles[pageId];
         document.getElementById('pageTitle').textContent    = title;
         document.getElementById('pageSubtitle').textContent = sub;
-    }
 
+        // Load alerts when switching to alerts page
+        if (pageId === 'alerts') loadAlerts();
+    }
     // ══════════════ LOAD LOGS ══════════════
     async function loadLogs() {
         try {
@@ -1323,7 +1392,105 @@
     setInterval(loadLogs, 30000);
 
     // ══════════════ INIT ══════════════
-    loadLogs();
+    // ══════════════ ALERTS ══════════════
+    async function loadAlerts() {
+    try {
+        const res  = await fetch('/alerts');
+        const data = await res.json();
+
+        // Update alert stat cards
+        document.getElementById('alertTotal').textContent =
+            data.total;
+        document.getElementById('alertCritical').textContent =
+            data.alerts.filter(a =>
+                a.severity === 'CRITICAL').length;
+        document.getElementById('alertHigh').textContent =
+            data.alerts.filter(a =>
+                a.severity === 'HIGH').length;
+        document.getElementById('alertMedium').textContent =
+            data.alerts.filter(a =>
+                a.severity === 'MEDIUM').length;
+
+        document.getElementById('alertCount').textContent =
+            `${data.total} alerts`;
+
+        // Update alert badge in sidebar
+        document.getElementById('alertBadge').textContent =
+            data.total;
+
+        // Render alert table
+        const tbody = document.getElementById('alertTableBody');
+
+        if (data.alerts.length === 0) {
+            tbody.innerHTML = `
+                <tr><td colspan="8"
+                    style="text-align:center;
+                           color:var(--text-muted);
+                           padding:40px">
+                    No alerts detected
+                </td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = data.alerts.map(alert => `
+            <tr>
+                <td style="color:var(--text-muted)">
+                    #${alert.id}
+                </td>
+                <td style="font-size:11px;
+                           color:var(--green);
+                           font-family:monospace">
+                    ${alert.rule_name}
+                </td>
+                <td>
+                    <span class="badge ${alert.severity}">
+                        ${alert.severity}
+                    </span>
+                </td>
+                <td style="font-size:12px;max-width:300px">
+                    ${alert.description}
+                </td>
+                <td style="font-family:monospace;
+                           color:var(--orange);
+                           font-size:12px">
+                    ${alert.source_ip}
+                </td>
+                <td>
+                    <span class="badge ${alert.status}">
+                        ${alert.status}
+                    </span>
+                </td>
+                <td style="color:var(--text-muted);
+                           font-size:11px;
+                           white-space:nowrap">
+                    ${alert.created_at.split('.')[0]}
+                </td>
+                <td>
+                    <button class="btn btn-outline"
+                            style="font-size:11px;padding:4px 8px"
+                            onclick="acknowledgeAlert(${alert.id})">
+                        ✓ ACK
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+
+    } catch (err) {
+        console.error('Failed to load alerts:', err);
+    }
+}
+
+async function acknowledgeAlert(id) {
+    try {
+        await fetch(`/alerts/${id}/status?status=ACKNOWLEDGED`,
+            { method: 'PUT' });
+        loadAlerts();
+    } catch (err) {
+        console.error('Failed to acknowledge alert:', err);
+    }
+}
+loadLogs();
+loadAlerts();
 </script>
 </body>
 </html>

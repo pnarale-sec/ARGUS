@@ -87,3 +87,78 @@ def get_logs_by_level(level):
             "source":    row[4]
         })
     return logs
+
+
+def init_alerts_table():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS alerts (
+            id          SERIAL PRIMARY KEY,
+            rule_name   TEXT,
+            description TEXT,
+            severity    TEXT,
+            source_ip   TEXT,
+            log_ids     TEXT,
+            status      TEXT DEFAULT 'NEW',
+            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+def insert_alert(alert):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO alerts 
+            (rule_name, description, severity, source_ip, log_ids, status)
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """, (
+        alert["rule_name"],
+        alert["description"],
+        alert["severity"],
+        alert["source_ip"],
+        alert["log_ids"],
+        alert["status"]
+    ))
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+def get_all_alerts():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, rule_name, description, severity,
+               source_ip, log_ids, status, created_at
+        FROM alerts
+        ORDER BY created_at DESC
+    """)
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    alerts = []
+    for row in rows:
+        alerts.append({
+            "id":          row[0],
+            "rule_name":   row[1],
+            "description": row[2],
+            "severity":    row[3],
+            "source_ip":   row[4],
+            "log_ids":     row[5],
+            "status":      row[6],
+            "created_at":  str(row[7])
+        })
+    return alerts
+
+def update_alert_status(alert_id, status):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE alerts SET status = %s WHERE id = %s
+    """, (status, alert_id))
+    conn.commit()
+    cursor.close()
+    conn.close()
