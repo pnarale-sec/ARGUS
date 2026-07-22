@@ -987,7 +987,7 @@
     // ══════════════ LOAD LOGS ══════════════
     async function loadLogs() {
         try {
-            const res  = await fetch('/logs');
+            const res  = await fetch('/api/logs');
             const data = await res.json();
             allLogs = data.logs;
 
@@ -1395,7 +1395,7 @@
     // ══════════════ ALERTS ══════════════
     async function loadAlerts() {
     try {
-        const res  = await fetch('/alerts');
+        const res  = await fetch('/api/alerts');
         const data = await res.json();
 
         // Update alert stat cards
@@ -1482,7 +1482,7 @@
 
 async function acknowledgeAlert(id) {
     try {
-        await fetch(`/alerts/${id}/status?status=ACKNOWLEDGED`,
+        await fetch(`/api/alerts/${id}/status?status=ACKNOWLEDGED`,
             { method: 'PUT' });
         loadAlerts();
     } catch (err) {

@@ -1,17 +1,24 @@
 # 👁️ ARGUS — Advanced Real-time Guard & Unified Security System
 
-> Named after the Greek giant with 100 eyes who could see everything.
+> Named after the Greek giant with 100 eyes who could see everything.  
 > ARGUS watches your entire infrastructure and never misses a threat.
 
-A production-style SIEM (Security Information and Event Management) 
-system built from scratch using Python, FastAPI, and PostgreSQL.
+![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green?logo=fastapi)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue?logo=postgresql)
+![License](https://img.shields.io/badge/License-MIT-yellow)
+![Status](https://img.shields.io/badge/Status-Active%20Development-brightgreen)
 
+A production-style **SIEM (Security Information and Event Management)** system  
+built from scratch using Python, FastAPI, and PostgreSQL.  
+Developed as a **Final Year Engineering Mega Project**.
 
 ---
 
 ## 📌 What is ARGUS?
 
 ARGUS is an open-source SIEM system that:
+
 - 📥 Collects logs from multiple sources
 - 🔍 Parses and normalizes log data
 - 🗄️ Stores logs in PostgreSQL database
@@ -21,6 +28,7 @@ ARGUS is an open-source SIEM system that:
 - 🗺️ Maps attacks to MITRE ATT&CK framework
 - 🌍 Performs GeoIP and threat intelligence lookups
 - 📧 Sends email alerts and generates PDF reports
+- 🔐 Role-based access control with JWT authentication
 - 🐳 Deployable via Docker
 
 ---
@@ -32,13 +40,27 @@ ARGUS is an open-source SIEM system that:
 | 1 | Log file reader | ✅ Completed |
 | 2 | Log parser + PostgreSQL storage | ✅ Completed |
 | 3 | FastAPI backend + REST APIs | ✅ Completed |
-| 4 | Frontend dashboard | 🔄 In Progress |
-| 5 | Rule engine + brute-force detection | ⏳ Pending |
-| 6 | Severity levels + alert dashboard | ⏳ Pending |
-| 7 | Multi-source log support | ⏳ Pending |
-| 8 | MITRE ATT&CK mapping | ⏳ Pending |
-| 9 | GeoIP + Threat Intelligence | ⏳ Pending |
-| 10 | Email alerts, PDF reports, Auth, Docker | ⏳ Pending |
+| 4 | Frontend dashboard with charts | ✅ Completed |
+| 5 | Rule engine + brute force detection | ✅ Completed |
+| 6 | Backend refactoring — modular architecture | 🔄 In Progress |
+| 7 | SQLAlchemy ORM + Alembic migrations | ⏳ Pending |
+| 8 | Improved detection engine (10+ rules) | ⏳ Pending |
+| 9 | Alert system with severity levels | ⏳ Pending |
+| 10 | Dashboard improvements | ⏳ Pending |
+| 11 | Charts and analytics | ⏳ Pending |
+| 12 | Investigation features | ⏳ Pending |
+| 13 | Advanced search system | ⏳ Pending |
+| 14 | Real-time WebSocket monitoring | ⏳ Pending |
+| 15 | Multi-source log parsers | ⏳ Pending |
+| 16 | Reporting (PDF, CSV, JSON) | ⏳ Pending |
+| 17 | JWT authentication + RBAC | ⏳ Pending |
+| 18 | Security hardening | ⏳ Pending |
+| 19 | Threat intelligence (VirusTotal, AbuseIPDB) | ⏳ Pending |
+| 20 | MITRE ATT&CK mapping | ⏳ Pending |
+| 21 | Performance optimization | ⏳ Pending |
+| 22 | Testing (pytest) | ⏳ Pending |
+| 23 | Docker deployment | ⏳ Pending |
+| 24 | Documentation | ⏳ Pending |
 
 ---
 
@@ -46,28 +68,48 @@ ARGUS is an open-source SIEM system that:
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Python 3.x, FastAPI |
-| Database | PostgreSQL |
-| Frontend | HTML, CSS, JavaScript |
+| Backend | Python 3.11, FastAPI |
+| ORM | SQLAlchemy 2.0 + Alembic |
+| Database | PostgreSQL 15 |
+| Frontend | HTML, CSS, JavaScript, Chart.js |
+| Auth | JWT + bcrypt |
 | Security | MITRE ATT&CK, VirusTotal, AbuseIPDB |
-| Deployment | Docker |
+| Testing | pytest |
+| Deployment | Docker + docker-compose |
 
 ---
 
 ## 📁 Project Structure
 ARGUS/
-├── logs/               # Raw log files
-│   └── sample.log
-├── src/                # Python source code
-│   ├── log_reader.py   # Phase 1 - Log ingestion
-│   ├── log_parser.py   # Phase 2 - Log parsing
-│   ├── database.py     # Phase 2-3 - Database operations
-│   ├── main.py         # Phase 2 - Pipeline controller
-│   └── api.py          # Phase 3 - REST API
-├── data/               # Local database files
-├── .env.example        # Environment variables template
+├── app/
+│   ├── api/              # API route handlers
+│   │   ├── logs.py
+│   │   ├── alerts.py
+│   │   ├── stats.py
+│   │   └── health.py
+│   ├── core/             # Core configuration
+│   │   ├── config.py
+│   │   └── logger.py
+│   ├── database/         # Database models and connection
+│   │   ├── connection.py
+│   │   └── models.py
+│   ├── schemas/          # Pydantic schemas
+│   │   ├── log.py
+│   │   └── alert.py
+│   ├── detection/        # Rule engine
+│   │   └── rule_engine.py
+│   ├── parser/           # Log parsers
+│   │   └── log_parser.py
+│   └── services/         # Business logic
+│       ├── log_service.py
+│       └── alert_service.py
+├── logs/                 # Raw log files
+├── static/               # Frontend dashboard
+├── tests/                # pytest test suite
+├── main.py               # Application entry point
+├── .env.example          # Environment variables template
+├── docker-compose.yml    # Docker deployment
 └── README.md
-
 ---
 
 ## ⚙️ Setup Instructions
@@ -78,24 +120,114 @@ git clone https://github.com/pnarale-sec/ARGUS.git
 cd ARGUS
 ```
 
-### 2. Install dependencies
+### 2. Create virtual environment
 ```bash
-pip install fastapi uvicorn psycopg2-binary python-dotenv
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+venv\Scripts\activate     # Windows
 ```
 
-### 3. Configure environment variables
+### 3. Install dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Configure environment variables
 ```bash
 cp .env.example .env
 # Edit .env with your PostgreSQL credentials
 ```
 
-### 4. Run log ingestion
+### 5. Run database migrations
 ```bash
-python src/main.py
+alembic upgrade head
 ```
 
-### 5. Start the API server
+### 6. Start the server
 ```bash
-cd src
-uvicorn api:app --reload
+uvicorn main:app --reload
 ```
+
+### 7. Open dashboard
+---
+
+## 🔌 API Endpoints
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/` | Dashboard | No |
+| GET | `/api/logs` | Get all logs | Yes |
+| GET | `/api/logs/{id}` | Get log by ID | Yes |
+| GET | `/api/alerts` | Get all alerts | Yes |
+| PUT | `/api/alerts/{id}/status` | Update alert status | Yes |
+| GET | `/api/stats` | Dashboard statistics | Yes |
+| GET | `/api/health` | System health check | No |
+
+---
+
+## 🔐 Detection Rules
+
+| Rule | Severity | Description |
+|------|----------|-------------|
+| BRUTE_FORCE | HIGH | 5+ failed logins from same IP |
+| ERROR_STORM | MEDIUM | 3+ errors from same source |
+| SUSPICIOUS_KEYWORD | CRITICAL | Known attack keywords |
+| PORT_SCAN | HIGH | Multiple port connection attempts |
+| SQL_INJECTION | CRITICAL | SQL injection patterns |
+| XSS | HIGH | Cross-site scripting patterns |
+| PRIVILEGE_ESCALATION | CRITICAL | Sudo/root access attempts |
+| DIRECTORY_TRAVERSAL | HIGH | Path traversal patterns |
+
+---
+
+## 📊 Dashboard Features
+
+- ✅ Real-time log monitoring
+- ✅ Severity distribution charts
+- ✅ Logs over time visualization
+- ✅ Alert management center
+- ✅ Global search with highlighting
+- ✅ Multi-filter support
+- ✅ Sortable, paginated log table
+- ✅ Expandable log details
+- ✅ One-click copy log entry
+- ✅ Auto-refresh every 30 seconds
+- ⏳ WebSocket live streaming
+- ⏳ GeoIP attack map
+- ⏳ MITRE ATT&CK matrix view
+
+---
+
+## 🧪 Running Tests
+
+```bash
+pytest tests/ -v
+```
+
+---
+
+## 🐳 Docker Deployment
+
+```bash
+docker-compose up --build
+```
+
+---
+
+## 👨‍💻 Developer
+
+**Prathamesh Narale**  
+Computer Science Engineering — Final Year  
+Shivaji University, Kolhapur 
+
+[![GitHub](https://img.shields.io/badge/GitHub-pnarale--sec-black?logo=github)](https://github.com/pnarale-sec)
+
+---
+
+## 📜 License
+
+MIT License — Free to use and modify
+
+---
+
+## ⭐ Star this repo if you find it useful!
