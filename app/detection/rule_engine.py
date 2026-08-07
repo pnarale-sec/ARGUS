@@ -161,15 +161,11 @@ def detect_suspicious_keywords(logs: list[dict]) -> list[dict]:
     return alerts
 
 # ── MAIN ENGINE ───────────────────────────────────────
-def run_rule_engine(logs: list[dict]) -> int:
-    """
-    Runs all detection rules against a list of logs.
-    Saves generated alerts to database.
-    Returns total number of alerts generated.
-    """
-    logger.info(
-        f"Rule engine starting — analyzing {len(logs)} logs"
-    )
+from sqlalchemy.orm import Session
+from app.services.alert_service import insert_alert
+
+def run_rule_engine(db: Session, logs: list[dict]) -> int:
+    logger.info(f"Rule engine starting — analyzing {len(logs)} logs")
 
     all_alerts = (
         detect_brute_force(logs) +
@@ -178,9 +174,7 @@ def run_rule_engine(logs: list[dict]) -> int:
     )
 
     for alert in all_alerts:
-        insert_alert(alert)
+        insert_alert(db, alert)
 
-    logger.info(
-        f"Rule engine complete — {len(all_alerts)} alerts generated"
-    )
+    logger.info(f"Rule engine complete — {len(all_alerts)} alerts generated")
     return len(all_alerts)

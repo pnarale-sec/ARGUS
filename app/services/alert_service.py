@@ -2,117 +2,59 @@
 """
 ARGUS Alert Service
 ===================
-Handles all alert-related database operations.
+All alert database operations using SQLAlchemy ORM.
 """
 
-from app.database.connection import get_connection, release_connection
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+from app.database.models import Alert
 from app.core.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-def insert_alert(alert: dict) -> None:
+def insert_alert(db: Session, alert: dict) -> None:
     """Insert a new alert into database"""
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO alerts
-                (rule_name, description, severity,
-                 source_ip, log_ids, status)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (
-            alert["rule_name"],
-            alert["description"],
-            alert["severity"],
-            alert["source_ip"],
-            alert["log_ids"],
-            alert["status"]
-        ))
-        conn.commit()
-        cursor.close()
-        logger.info(f"Alert inserted: {alert['rule_name']}")
-    except Exception as e:
-        conn.rollback()
-        logger.error(f"Failed to insert alert: {e}")
-        raise
-    finally:
-        release_connection(conn)
+    db_alert = Alert(
+        rule_name=alert["rule_name"],
+        description=alert["description"],
+        severity=alert["severity"],
+        source_ip=alert["source_ip"],
+        log_ids=alert["log_ids"],
+        status=alert["status"]
+    )
+    db.add(db_alert)
+    db.commit()
+    logger.info(f"Alert inserted: {alert['rule_name']}")
 
-def get_all_alerts() -> list[dict]:
+def get_all_alerts(db: Session) -> list[dict]:
     """Retrieve all alerts ordered by newest first"""
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT id, rule_name, description, severity,
-                   source_ip, log_ids, status, created_at
-            FROM alerts
-            ORDER BY created_at DESC
-        """)
-        rows = cursor.fetchall()
-        cursor.close()
-        return [
-            {
-                "id":          row[0],
-                "rule_name":   row[1],
-                "description": row[2],
-                "severity":    row[3],
-                "source_ip":   row[4],
-                "log_ids":     row[5],
-                "status":      row[6],
-                "created_at":  str(row[7])
-            }
-            for row in rows
-        ]
-    except Exception as e:
-        logger.error(f"Failed to fetch alerts: {e}")
-        raise
-    finally:
-        release_connection(conn)
+    alerts = (
+        db.query(Alert)
+        .order_by(Alert.created_at.desc())
+        .all()
+    )
+    return [alert.to_dict() for alert in alerts]
 
-def update_alert_status(alert_id: int, status: str) -> None:
+def update_alert_status(db: Session, alert_id: int, status: str) -> None:
     """Update the status of an alert"""
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE alerts SET status = %s WHERE id = %s
-        """, (status, alert_id))
-        conn.commit()
-        cursor.close()
+    alert = db.query(Alert).filter(Alert.id == alert_id).first()
+    if alert:
+        alert.status = status
+        db.commit()
         logger.info(f"Alert {alert_id} status updated to {status}")
-    except Exception as e:
-        conn.rollback()
-        logger.error(f"Failed to update alert status: {e}")
-        raise
-    finally:
-        release_connection(conn)
 
-def get_alert_stats() -> dict:
-    """Get alert count statistics for dashboard"""
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT
-                COUNT(*) as total,
-                COUNT(CASE WHEN severity = 'CRITICAL' THEN 1 END) as critical,
-                COUNT(CASE WHEN severity = 'HIGH'     THEN 1 END) as high,
-                COUNT(CASE WHEN severity = 'MEDIUM'   THEN 1 END) as medium,
-                COUNT(CASE WHEN status = 'NEW'        THEN 1 END) as new_alerts
-            FROM alerts
-        """)
-        row = cursor.fetchone()
-        cursor.close()
-        return {
-            "total":      row[0],
-            "critical":   row[1],
-            "high":       row[2],
-            "medium":     row[3],
-            "new_alerts": row[4]
-        }
-    except Exception as e:
-        logger.error(f"Failed to fetch alert stats: {e}")
-        raise
-    finally:
-        release_connection(conn)
+def get_alert_stats(db: Session) -> dict:
+    """Get alert statistics for dashboard"""
+    total      = db.query(func.count(Alert.id)).scalar()
+    critical   = db.query(func.count(Alert.id)).filter(Alert.severity == "CRITICAL").scalar()
+    high       = db.query(func.count(Alert.id)).filter(Alert.severity == "HIGH").scalar()
+    medium     = db.query(func.count(Alert.id)).filter(Alert.severity == "MEDIUM").scalar()
+    new_alerts = db.query(func.count(Alert.id)).filter(Alert.status == "NEW").scalar()
+
+    return {
+        "total":      total,
+        "critical":   critical,
+        "high":       high,
+        "medium":     medium,
+        "new_alerts": new_alerts
+    }

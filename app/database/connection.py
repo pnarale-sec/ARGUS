@@ -2,107 +2,66 @@
 """
 ARGUS Database Connection
 =========================
-Manages PostgreSQL connection pool.
+SQLAlchemy engine and session management.
 
-Why connection pooling:
-- Opening a database connection is expensive (takes time)
-- A pool keeps connections open and reuses them
-- Much faster than opening/closing for every query
-- Handles multiple simultaneous requests properly
+Key concepts:
+- Engine:  the connection to the database
+- Session: the workspace for database operations
+           like a shopping cart — add items, then checkout (commit)
 """
 
-import psycopg2
-from psycopg2 import pool
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
 from app.core.config import settings
 from app.core.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-# Connection pool — keeps 1 to 10 connections open
-connection_pool = None
+# Build PostgreSQL connection URL
+# Format: postgresql://user:password@host:port/dbname
+DATABASE_URL = (
+    f"postgresql://{settings.DB_USER}:{settings.DB_PASSWORD}"
+    f"@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
+)
 
-def init_connection_pool():
-    """
-    Creates the connection pool when app starts.
-    Called once at startup — not for every request.
-    """
-    global connection_pool
+# Engine — manages the actual database connection pool
+# pool_size=10 means max 10 connections kept open
+# echo=False means don't print every SQL query
+engine = create_engine(
+    DATABASE_URL,
+    pool_size=10,
+    max_overflow=20,
+    echo=False
+)
 
+# SessionLocal — factory for creating new sessions
+# autocommit=False means we control when to save
+# autoflush=False means we control when to sync
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine
+)
+
+def get_db() -> Session:
+    """
+    Dependency function that provides a database session.
+    Used by FastAPI routes via Depends().
+
+    Automatically closes session after request is complete.
+    This is the recommended FastAPI + SQLAlchemy pattern.
+    """
+    db = SessionLocal()
     try:
-        connection_pool = psycopg2.pool.ThreadedConnectionPool(
-            minconn=1,   # minimum open connections
-            maxconn=10,  # maximum open connections
-            host=settings.DB_HOST,
-            port=settings.DB_PORT,
-            dbname=settings.DB_NAME,
-            user=settings.DB_USER,
-            password=settings.DB_PASSWORD
-        )
-        logger.info("Database connection pool initialized")
-    except Exception as e:
-        logger.error(f"Failed to initialize connection pool: {e}")
-        raise
-
-def get_connection():
-    """
-    Gets a connection from the pool.
-    Use this instead of creating new connections.
-    """
-    if connection_pool is None:
-        init_connection_pool()
-    return connection_pool.getconn()
-
-def release_connection(conn):
-    """
-    Returns connection back to pool for reuse.
-    Always call this after you are done with a connection.
-    """
-    if connection_pool and conn:
-        connection_pool.putconn(conn)
+        yield db
+    finally:
+        db.close()
 
 def init_db():
     """
-    Creates all database tables if they don't exist.
+    Creates all tables defined in models.py.
     Called once when application starts.
     """
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-
-        # Logs table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS logs (
-                id        SERIAL PRIMARY KEY,
-                timestamp TEXT,
-                level     TEXT,
-                message   TEXT,
-                source    TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-
-        # Alerts table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS alerts (
-                id          SERIAL PRIMARY KEY,
-                rule_name   TEXT,
-                description TEXT,
-                severity    TEXT,
-                source_ip   TEXT,
-                log_ids     TEXT,
-                status      TEXT DEFAULT 'NEW',
-                created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-
-        conn.commit()
-        cursor.close()
-        logger.info("Database tables initialized successfully")
-
-    except Exception as e:
-        conn.rollback()
-        logger.error(f"Database initialization failed: {e}")
-        raise
-    finally:
-        # Always release connection back to pool
-        release_connection(conn)
+    from app.database.models import Base
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database tables initialized via SQLAlchemy")

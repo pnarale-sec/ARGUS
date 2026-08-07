@@ -2,127 +2,66 @@
 """
 ARGUS Log Service
 =================
-Handles all log-related database operations.
+All log database operations using SQLAlchemy ORM.
 
-Why a service layer:
-- Keeps API routes thin and clean
-- Business logic is reusable across multiple routes
-- Easier to test in isolation
-- Separation of concerns
+Before (raw SQL):
+    cursor.execute("SELECT * FROM logs")
+    rows = cursor.fetchall()
+
+After (SQLAlchemy):
+    logs = db.query(Log).all()
+
+Much cleaner. Much safer.
 """
 
-from app.database.connection import get_connection, release_connection
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+from app.database.models import Log
 from app.core.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-def insert_log(log: dict) -> None:
+def insert_log(db: Session, log: dict) -> None:
     """Insert a single parsed log into database"""
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO logs (timestamp, level, message, source)
-            VALUES (%s, %s, %s, %s)
-        """, (
-            log["timestamp"],
-            log["level"],
-            log["message"],
-            log["source"]
-        ))
-        conn.commit()
-        cursor.close()
-    except Exception as e:
-        conn.rollback()
-        logger.error(f"Failed to insert log: {e}")
-        raise
-    finally:
-        release_connection(conn)
+    db_log = Log(
+        timestamp=log["timestamp"],
+        level=log["level"],
+        message=log["message"],
+        source=log["source"]
+    )
+    db.add(db_log)
+    db.commit()
+    db.refresh(db_log)
 
-def get_all_logs() -> list[dict]:
+def get_all_logs(db: Session) -> list[dict]:
     """Retrieve all logs ordered by newest first"""
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT id, timestamp, level, message, source
-            FROM logs
-            ORDER BY id DESC
-        """)
-        rows = cursor.fetchall()
-        cursor.close()
-        return [
-            {
-                "id":        row[0],
-                "timestamp": row[1],
-                "level":     row[2],
-                "message":   row[3],
-                "source":    row[4]
-            }
-            for row in rows
-        ]
-    except Exception as e:
-        logger.error(f"Failed to fetch logs: {e}")
-        raise
-    finally:
-        release_connection(conn)
+    logs = db.query(Log).order_by(Log.id.desc()).all()
+    return [log.to_dict() for log in logs]
 
-def get_logs_by_level(level: str) -> list[dict]:
+def get_logs_by_level(db: Session, level: str) -> list[dict]:
     """Retrieve logs filtered by severity level"""
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT id, timestamp, level, message, source
-            FROM logs
-            WHERE level = %s
-            ORDER BY id DESC
-        """, (level,))
-        rows = cursor.fetchall()
-        cursor.close()
-        return [
-            {
-                "id":        row[0],
-                "timestamp": row[1],
-                "level":     row[2],
-                "message":   row[3],
-                "source":    row[4]
-            }
-            for row in rows
-        ]
-    except Exception as e:
-        logger.error(f"Failed to fetch logs by level: {e}")
-        raise
-    finally:
-        release_connection(conn)
+    logs = (
+        db.query(Log)
+        .filter(Log.level == level)
+        .order_by(Log.id.desc())
+        .all()
+    )
+    return [log.to_dict() for log in logs]
 
-def get_log_stats() -> dict:
+def get_log_stats(db: Session) -> dict:
     """Get log count statistics for dashboard cards"""
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT
-                COUNT(*) as total,
-                COUNT(CASE WHEN level = 'INFO'     THEN 1 END) as info,
-                COUNT(CASE WHEN level = 'WARNING'  THEN 1 END) as warning,
-                COUNT(CASE WHEN level = 'ERROR'    THEN 1 END) as error,
-                COUNT(CASE WHEN level = 'CRITICAL' THEN 1 END) as critical,
-                COUNT(DISTINCT source) as sources
-            FROM logs
-        """)
-        row = cursor.fetchone()
-        cursor.close()
-        return {
-            "total":    row[0],
-            "info":     row[1],
-            "warning":  row[2],
-            "error":    row[3],
-            "critical": row[4],
-            "sources":  row[5]
-        }
-    except Exception as e:
-        logger.error(f"Failed to fetch log stats: {e}")
-        raise
-    finally:
-        release_connection(conn)
+    total    = db.query(func.count(Log.id)).scalar()
+    info     = db.query(func.count(Log.id)).filter(Log.level == "INFO").scalar()
+    warning  = db.query(func.count(Log.id)).filter(Log.level == "WARNING").scalar()
+    error    = db.query(func.count(Log.id)).filter(Log.level == "ERROR").scalar()
+    critical = db.query(func.count(Log.id)).filter(Log.level == "CRITICAL").scalar()
+    sources  = db.query(func.count(func.distinct(Log.source))).scalar()
+
+    return {
+        "total":    total,
+        "info":     info,
+        "warning":  warning,
+        "error":    error,
+        "critical": critical,
+        "sources":  sources
+    }

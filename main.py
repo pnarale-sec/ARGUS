@@ -22,7 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.logger import setup_logger
-from app.database.connection import init_connection_pool, init_db
+from app.database.connection import init_db
 from app.api import logs, alerts, health
 
 import os
@@ -60,12 +60,7 @@ app.include_router(health.router)
 # ── Startup event ─────────────────────────────────────
 @app.on_event("startup")
 def startup():
-    """
-    Runs when server starts.
-    Initialize database connection pool and tables.
-    """
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
-    init_connection_pool()
     init_db()
     logger.info("ARGUS is ready")
 
