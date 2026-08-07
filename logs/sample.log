@@ -10,3 +10,40 @@
 2026-06-20 10:18:00 ERROR Database connection failed on /dev/sda1
 2026-06-20 10:18:10 ERROR Disk read error on /dev/sda1
 2026-06-20 10:19:00 WARNING Unauthorized access attempt detected from 10.0.0.1
+2026-06-20 10:15:32 INFO User admin logged in from 192.168.1.10
+2026-06-20 10:16:01 WARNING Failed login attempt for user admin from 192.168.1.55
+2026-06-20 10:16:05 WARNING Failed login attempt for user admin from 192.168.1.55
+2026-06-20 10:16:09 WARNING Failed login attempt for user admin from 192.168.1.55
+2026-06-20 10:16:13 WARNING Failed login attempt for user admin from 192.168.1.55
+2026-06-20 10:16:17 WARNING Failed login attempt for user admin from 192.168.1.55
+2026-06-20 10:16:21 WARNING Failed login attempt for user admin from 192.168.1.55
+2026-06-20 10:17:00 ERROR Disk usage at 95% on /dev/sda1
+2026-06-20 10:17:05 ERROR Database connection timeout after 30s
+2026-06-20 10:17:10 ERROR Failed to read from disk /dev/sdb
+2026-06-20 10:17:15 ERROR Service nginx failed to start
+2026-06-20 10:18:00 WARNING Unauthorized access attempt from 10.0.0.1
+2026-06-20 10:18:30 WARNING Port scan detected from 203.0.113.5 ports 22,80,443,8080,3306,5432,6379
+2026-06-20 10:18:31 WARNING Connection attempt from 203.0.113.5 to port 22
+2026-06-20 10:18:32 WARNING Connection attempt from 203.0.113.5 to port 80
+2026-06-20 10:18:33 WARNING Connection attempt from 203.0.113.5 to port 443
+2026-06-20 10:18:34 WARNING Connection attempt from 203.0.113.5 to port 3306
+2026-06-20 10:18:35 WARNING Connection attempt from 203.0.113.5 to port 5432
+2026-06-20 10:19:00 ERROR SQL error: SELECT * FROM users WHERE id=1 OR 1=1--
+2026-06-20 10:19:10 WARNING Possible SQL injection attempt: UNION SELECT username,password FROM users
+2026-06-20 10:19:20 WARNING XSS attempt detected: <script>alert('xss')</script> in request
+2026-06-20 10:19:30 WARNING XSS payload found: javascript:void(0) in user input
+2026-06-20 10:20:00 WARNING Privilege escalation attempt: sudo su - root by user john
+2026-06-20 10:20:10 WARNING User www-data attempted to run chmod 777 /etc/passwd
+2026-06-20 10:20:20 ERROR Unauthorized sudo access by user deploy
+2026-06-20 10:21:00 WARNING Directory traversal attempt: GET /../../../etc/passwd HTTP/1.1
+2026-06-20 10:21:10 WARNING Path traversal detected: /var/www/../../../etc/shadow
+2026-06-20 10:22:00 WARNING Large data transfer detected: 2.5GB sent to 185.220.101.45
+2026-06-20 10:22:10 WARNING Unusual outbound traffic: 500MB transfer to external IP 91.108.4.1
+2026-06-20 10:23:00 WARNING 404 error for /admin/config.php from 198.51.100.7
+2026-06-20 10:23:01 WARNING 404 error for /wp-admin/setup.php from 198.51.100.7
+2026-06-20 10:23:02 WARNING 404 error for /.env from 198.51.100.7
+2026-06-20 10:23:03 WARNING 404 error for /phpinfo.php from 198.51.100.7
+2026-06-20 10:23:04 WARNING 404 error for /backup.sql from 198.51.100.7
+2026-06-20 10:24:00 INFO System health check passed
+2026-06-20 10:24:30 INFO Backup completed successfully
+2026-06-20 10:25:00 INFO User john logged out
