@@ -81,3 +81,31 @@ class Alert(Base):
 
     def __repr__(self):
         return f"<Alert id={self.id} rule={self.rule_name}>"
+
+
+class User(Base):
+    """
+    Represents the users table.
+    Stores analyst and admin accounts for ARGUS.
+    """
+    __tablename__ = "users"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    username      = Column(String,  unique=True, nullable=False, index=True)
+    email         = Column(String,  unique=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    role          = Column(String,  default="readonly")
+    is_active     = Column(String,  default="true")
+    created_at    = Column(DateTime, default=datetime.utcnow)
+
+    def to_dict(self) -> dict:
+        return {
+            "id":       self.id,
+            "username": self.username,
+            "email":    self.email,
+            "role":     self.role,
+            "is_active": self.is_active
+        }
+
+    def __repr__(self):
+        return f"<User id={self.id} username={self.username} role={self.role}>"

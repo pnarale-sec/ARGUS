@@ -1,6 +1,7 @@
 # ingest.py
 import os
 from app.database.connection import init_db, SessionLocal
+from app.database.models import Log, Alert
 from app.parser.log_parser import parse_log_line
 from app.services.log_service import insert_log, get_all_logs
 from app.detection.rule_engine import run_rule_engine
@@ -14,6 +15,12 @@ def ingest():
     db = SessionLocal()
 
     try:
+        # Clear old data for clean run
+        db.query(Alert).delete()
+        db.query(Log).delete()
+        db.commit()
+        logger.info("Cleared old logs and alerts")
+
         log_files = os.listdir(LOGS_FOLDER)
         total = 0
 
@@ -36,6 +43,11 @@ def ingest():
 
         all_logs = get_all_logs(db)
         run_rule_engine(db, all_logs)
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Ingestion failed: {e}")
+        raise
 
     finally:
         db.close()

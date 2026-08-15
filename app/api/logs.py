@@ -2,11 +2,13 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.database.connection import get_db
+from app.database.models import User
 from app.services.log_service import (
     get_all_logs,
     get_logs_by_level,
     get_log_stats
 )
+from app.core.dependencies import require_role
 from app.core.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -14,11 +16,13 @@ router = APIRouter(prefix="/api/logs", tags=["Logs"])
 
 @router.get("")
 def fetch_all_logs(db: Session = Depends(get_db)):
+    """Public — dashboard reads this"""
     logs = get_all_logs(db)
     return {"total": len(logs), "logs": logs}
 
 @router.get("/stats")
 def fetch_log_stats(db: Session = Depends(get_db)):
+    """Public — dashboard reads this"""
     return get_log_stats(db)
 
 @router.get("/level/{level}")
