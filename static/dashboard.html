@@ -564,6 +564,99 @@
     </style>
 </head>
 <body>
+    <!-- Login Overlay -->
+<div id="loginOverlay" style="
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: #0a0e1a;
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+">
+    <div style="
+        background: #1a1f2e;
+        border: 1px solid #00ff88;
+        border-radius: 12px;
+        padding: 40px;
+        width: 380px;
+        text-align: center;
+    ">
+        <div style="color: #00ff88; font-size: 2rem; margin-bottom: 8px;">👁️ ARGUS</div>
+        <div style="color: #888; font-size: 0.85rem; margin-bottom: 30px;">
+            SECURITY INFORMATION & EVENT MANAGEMENT
+        </div>
+
+        <div id="loginError" style="
+            display: none;
+            background: rgba(255,68,68,0.1);
+            border: 1px solid #ff4444;
+            color: #ff4444;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            font-size: 0.85rem;
+        "></div>
+
+        <input
+            id="loginUsername"
+            type="text"
+            placeholder="Username"
+            style="
+                width: 100%;
+                padding: 12px;
+                margin-bottom: 12px;
+                background: #0d1117;
+                border: 1px solid #333;
+                border-radius: 6px;
+                color: #fff;
+                font-size: 0.95rem;
+                box-sizing: border-box;
+            "
+        />
+
+        <input
+            id="loginPassword"
+            type="password"
+            placeholder="Password"
+            style="
+                width: 100%;
+                padding: 12px;
+                margin-bottom: 20px;
+                background: #0d1117;
+                border: 1px solid #333;
+                border-radius: 6px;
+                color: #fff;
+                font-size: 0.95rem;
+                box-sizing: border-box;
+            "
+        />
+
+        <button
+            id="loginBtn"
+            onclick="doLogin()"
+            style="
+                width: 100%;
+                padding: 12px;
+                background: #00ff88;
+                color: #0a0e1a;
+                border: none;
+                border-radius: 6px;
+                font-size: 1rem;
+                font-weight: bold;
+                cursor: pointer;
+            "
+        >
+            LOGIN
+        </button>
+
+        <div style="color: #555; font-size: 0.75rem; margin-top: 20px;">
+            ARGUS SIEM v2.0 — Secure Access
+        </div>
+    </div>
+</div>
+
 
 <!-- ══════════════ SIDEBAR ══════════════ -->
 <div class="sidebar">
@@ -630,6 +723,17 @@
                 <div id="dateDisplay">Loading...</div>
             </div>
             <button class="refresh-btn" onclick="loadLogs()">🔄 Refresh</button>
+                <button onclick="logout()" style="
+                    background: rgba(255,68,68,0.1);
+                    border: 1px solid #ff4444;
+                    color: #ff4444;
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 12px;
+                    margin-left: 8px;
+                ">🚪 Logout
+                </button>
         </div>
     </div>
 
@@ -987,7 +1091,9 @@
     // ══════════════ LOAD LOGS ══════════════
     async function loadLogs() {
         try {
-            const res  = await fetch('/api/logs');
+            const res = await fetch('/api/logs', {
+             headers: { 'Authorization': 'Bearer ' + localStorage.getItem('argus_token') }
+            });
             const data = await res.json();
             allLogs = data.logs;
 
@@ -1395,7 +1501,9 @@
     // ══════════════ ALERTS ══════════════
     async function loadAlerts() {
     try {
-        const res  = await fetch('/api/alerts');
+        const res = await fetch('/api/alerts', {
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('argus_token') }
+        });
         const data = await res.json();
 
         // Update alert stat cards
@@ -1481,16 +1589,147 @@
 }
 
 async function acknowledgeAlert(id) {
+    const token = localStorage.getItem('argus_token');
+    if (!token) {
+        alert('You must be logged in to acknowledge alerts.');
+        return;
+    }
     try {
-        await fetch(`/api/alerts/${id}/status?status=ACKNOWLEDGED`,
-            { method: 'PUT' });
-        loadAlerts();
+        const res = await fetch(`/api/alerts/${id}/status`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({ status: 'ACKNOWLEDGED' })
+        });
+        if (res.status === 401) {
+            alert('Session expired. Please login again.');
+            logout();
+            return;
+        }
+        if (res.status === 403) {
+            alert('Access denied. Analyst or Admin role required.');
+            return;
+        }
+        if (res.ok) {
+            loadAlerts();
+        }
     } catch (err) {
-        console.error('Failed to acknowledge alert:', err);
+        console.error('ACK failed:', err);
     }
 }
 loadLogs();
 loadAlerts();
+
+// ── AUTH FUNCTIONS ────────────────────────────────────
+
+function getToken() {
+    return localStorage.getItem('argus_token');
+}
+
+function getUser() {
+    return JSON.parse(localStorage.getItem('argus_user') || '{}');
+}
+
+function showLoginPage() {
+    document.getElementById('loginOverlay').style.display = 'flex';
+}
+
+function hideLoginPage() {
+    document.getElementById('loginOverlay').style.display = 'none';
+}
+
+function logout() {
+    localStorage.removeItem('argus_token');
+    localStorage.removeItem('argus_user');
+    showLoginPage();
+}
+
+async function doLogin() {
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value.trim();
+    const errorDiv = document.getElementById('loginError');
+    const loginBtn = document.getElementById('loginBtn');
+
+    if (!username || !password) {
+        errorDiv.style.display = 'block';
+        errorDiv.textContent = 'Please enter username and password.';
+        return;
+    }
+
+    loginBtn.textContent = 'Logging in...';
+    loginBtn.disabled = true;
+    errorDiv.style.display = 'none';
+
+    try {
+        const res = await fetch('/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            errorDiv.style.display = 'block';
+            errorDiv.textContent = data.detail || 'Invalid credentials.';
+            loginBtn.textContent = 'LOGIN';
+            loginBtn.disabled = false;
+            return;
+        }
+
+        // Store token and user info
+        localStorage.setItem('argus_token', data.access_token);
+        localStorage.setItem('argus_user', JSON.stringify({
+            username: data.username,
+            role:     data.role
+        }));
+
+        hideLoginPage();
+        updateUserDisplay();
+
+        // Load dashboard data
+        loadLogs();
+        loadAlerts();
+
+    } catch (err) {
+        errorDiv.style.display = 'block';
+        errorDiv.textContent = 'Connection error. Is the server running?';
+        loginBtn.textContent = 'LOGIN';
+        loginBtn.disabled = false;
+    }
+}
+
+function updateUserDisplay() {
+    const user = getUser();
+    // Update header if user info element exists
+    const userEl = document.getElementById('currentUser');
+    if (userEl) {
+        userEl.textContent = `${user.username} (${user.role})`;
+    }
+}
+
+// Allow Enter key to submit login form
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('loginPassword').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') doLogin();
+    });
+    document.getElementById('loginUsername').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') doLogin();
+    });
+});
+
+// ── STARTUP — Check if logged in ─────────────────────
+(function checkAuth() {
+    const token = getToken();
+    if (!token) {
+        showLoginPage();
+    } else {
+        hideLoginPage();
+        updateUserDisplay();
+    }
+})();
 </script>
 </body>
 </html>
